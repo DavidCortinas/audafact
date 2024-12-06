@@ -1,0 +1,14 @@
+run = "ENV=development uvicorn lab.essentia.main:main_app --host 0.0.0.0 --port ${PORT:-8000}"
+modules = ["python-3.8"]
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "ENV=production uvicorn lab.essentia.main:main_app --host 0.0.0.0 --port ${PORT:-8000}"]
+build = ["sh", "-c", "pip install -r requirements.txt"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 8000
+externalPort = 80

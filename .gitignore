@@ -1,11 +1,18 @@
 # Virtual Environment
 env/
-essential_env/
+essentia_env/
+venv/
+temp/
 
 # Specific files to ignore
 lab/essentia/models/run.py
 .env.txt
 genre_analysis.log
+.env
+.venv
+.essentia_env
+*.log
+
 
 # Audio files
 *.m4a
