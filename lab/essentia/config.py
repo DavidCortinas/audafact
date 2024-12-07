@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     MODEL_PATH: str = "models"
     ALLOW_ORIGINS: list = ["*"]
     ENV: str = "development"
-    RAPIDAPI_KEY: Optional[str] = None  # Make it optional
+    RAPIDAPI_PROXY_SECRET: Optional[str] = None
 
     @property
     def require_auth(self) -> bool:
