@@ -39,3 +39,6 @@ build/
 .idea/
 *.swp
 *.swo
+
+# Experiments
+lab/
