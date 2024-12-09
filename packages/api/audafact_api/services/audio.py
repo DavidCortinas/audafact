@@ -39,22 +39,22 @@ def predict_genre_from_segments(audio_file_path, model_dir, segment_length=45):
             "output": "PartitionedCall:0",
             "is_hierarchical": True,  # Uses umbrella/sub-genre format
         },
-        "mtg_general": {
-            "embedding": "discogs-effnet-bs64-1.pb",
-            "genre": "mtg_jamendo_genre-discogs-effnet-1.pb",
-            "metadata": "mtg_jamendo_genre-discogs-effnet-1.json",
-            "input": "model/Placeholder",
-            "output": "model/Sigmoid",
-            "is_hierarchical": False,
-        },
-        "mtg_track": {
-            "embedding": "discogs_track_embeddings-effnet-bs64-1.pb",
-            "genre": "mtg_jamendo_genre-discogs_track_embeddings-effnet-1.pb",
-            "metadata": "mtg_jamendo_genre-discogs_track_embeddings-effnet-1.json",
-            "input": "model/Placeholder",
-            "output": "model/Sigmoid",
-            "is_hierarchical": False,
-        },
+        # "mtg_general": {
+        #     "embedding": "discogs-effnet-bs64-1.pb",
+        #     "genre": "mtg_jamendo_genre-discogs-effnet-1.pb",
+        #     "metadata": "mtg_jamendo_genre-discogs-effnet-1.json",
+        #     "input": "model/Placeholder",
+        #     "output": "model/Sigmoid",
+        #     "is_hierarchical": False,
+        # },
+        # "mtg_track": {
+        #     "embedding": "discogs_track_embeddings-effnet-bs64-1.pb",
+        #     "genre": "mtg_jamendo_genre-discogs_track_embeddings-effnet-1.pb",
+        #     "metadata": "mtg_jamendo_genre-discogs_track_embeddings-effnet-1.json",
+        #     "input": "model/Placeholder",
+        #     "output": "model/Sigmoid",
+        #     "is_hierarchical": False,
+        # },
     }
 
     # Load audio once
