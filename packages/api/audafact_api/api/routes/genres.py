@@ -12,6 +12,14 @@ from ...core.config import settings
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# Add startup checks here
+print("=== Model Path Debug Info ===")
+print(f"Model path configured as: {settings.MODEL_PATH}")
+print(f"Model path exists: {os.path.exists(settings.MODEL_PATH)}")
+if os.path.exists(settings.MODEL_PATH):
+    print("Files in model directory:", os.listdir(settings.MODEL_PATH))
+print("===========================")
+
 
 class URLInput(BaseModel):
     url: str
@@ -74,7 +82,8 @@ async def get_genres_by_file(file: UploadFile = File(..., max_size=10 * 1024 * 1
     try:
         logger.info(f"Received file: {file.filename}")
         logger.info(f"File content type: {file.content_type}")
-        logger.info(f"File size: {file.size if hasattr(file, 'size') else 'unknown'}")
+        logger.info(
+            f"File size: {file.size if hasattr(file, 'size') else 'unknown'}")
 
         print("Processing uploaded file")
         with tempfile.NamedTemporaryFile(delete=False) as temp_audio:
@@ -85,8 +94,7 @@ async def get_genres_by_file(file: UploadFile = File(..., max_size=10 * 1024 * 1
             logger.info(f"Saved to temporary file: {audio_file_path}")
 
         genre_predictions = predict_genre_from_segments(
-            audio_file_path, settings.MODEL_PATH
-        )
+            audio_file_path, settings.MODEL_PATH)
         return JSONResponse(content={"genres": genre_predictions})
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}", exc_info=True)
