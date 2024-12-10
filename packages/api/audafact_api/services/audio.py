@@ -27,6 +27,7 @@ def load_json_metadata(filepath):
 
 def predict_genre_from_segments(audio_file_path, model_dir, segment_length=45):
     model_dir = os.path.abspath(model_dir)
+    print(f"Debug - Using model directory: {model_dir}")
     print(f"Loading audio file from: {audio_file_path}")
 
     # Define model configurations
