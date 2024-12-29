@@ -3,9 +3,9 @@ from fastapi.responses import JSONResponse
 import logging
 import tempfile
 import os
-from ...services.audio import predict_tags_from_segments, predict_tags_from_file
-from ...services.downloader import download_audio_from_url
-from ...core.config import settings
+from services.audio import predict_tags_from_segments, predict_tags_from_file
+from services.downloader import download_audio_from_url
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

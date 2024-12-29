@@ -2,9 +2,11 @@ import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from .routes import analysis, spotify
+from services.audio import initialize_models
 from .middleware.size_limit import MaxSizeLimitMiddleware
 from .routes import genres, mood_themes, tags
-from ..core.config import settings
+from core.config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,6 +28,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize ML models and verify configuration."""
+    logger.info("Initializing ML models...")
+    try:
+        initialize_models(settings.MODEL_PATH)
+        logger.info("ML models initialized successfully")
+
+        # Add this section to verify Spotify credentials
+        logger.info("Checking Spotify credentials...")
+        if settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET:
+            logger.info("Spotify credentials found")
+            logger.info(f"Client ID starts with: {settings.SPOTIFY_CLIENT_ID[:5]}...")
+        else:
+            logger.warning("Spotify credentials not found in environment!")
+
+    except Exception as e:
+        logger.error(f"Failed to initialize: {str(e)}")
+        raise
 
 
 @app.middleware("http")
@@ -73,9 +96,11 @@ async def metrics():
     return {"uptime": "...", "request_count": "...", "error_count": "..."}
 
 
+app.include_router(spotify.router, prefix="/api", tags=["spotify"])
 app.include_router(genres.router, prefix="/api")
 app.include_router(mood_themes.router, prefix="/api")
 app.include_router(tags.router, prefix="/api")
+app.include_router(analysis.router, prefix="/api")
 
 
 @app.middleware("http")

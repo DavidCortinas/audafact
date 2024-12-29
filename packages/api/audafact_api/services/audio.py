@@ -9,8 +9,50 @@ from essentia.standard import (
 import logging
 import os
 import json
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
+
+# At module level, add these configurations
+GENRE_MODELS = {
+    "discogs400": {
+        "embedding": "discogs-effnet-bs64-1.pb",
+        "genre": "genre_discogs400-discogs-effnet-1.pb",
+        "metadata": "genre_discogs400-discogs-effnet-1.json",
+        "input": "serving_default_model_Placeholder",
+        "output": "PartitionedCall:0",
+        "is_hierarchical": True,
+    }
+}
+
+MOOD_THEME_MODELS = {
+    "general": {
+        "embedding": "discogs-effnet-bs64-1.pb",
+        "mood_theme": "mtg_jamendo_moodtheme-discogs-effnet-1.pb",
+        "metadata": "mtg_jamendo_moodtheme-discogs-effnet-1.json",
+    },
+    "track_level": {
+        "embedding": "discogs_track_embeddings-effnet-bs64-1.pb",
+        "mood_theme": "mtg_jamendo_moodtheme-discogs_track_embeddings-effnet-1.pb",
+        "metadata": "mtg_jamendo_moodtheme-discogs_track_embeddings-effnet-1.json",
+    },
+}
+
+TAG_MODELS = {
+    "mtg_jamendo_general": {
+        "embedding": "discogs-effnet-bs64-1.pb",
+        "tag": "mtg_jamendo_top50tags-discogs-effnet-1.pb",
+        "metadata": "mtg_jamendo_top50tags-discogs-effnet-1.json",
+        "input": "model/Placeholder",
+        "output": "model/Sigmoid",
+        "embedding_type": "effnet",
+    },
+    # ... other tag models ...
+}
+
+# Add global model storage
+_LOADED_MODELS = {"genre": {}, "mood_theme": {}, "tags": {}}
 
 
 def normalize_audio(segment):
@@ -25,148 +67,149 @@ def load_json_metadata(filepath):
         return json.load(f)
 
 
-def predict_genre_from_segments(audio_file_path, model_dir, segment_length=45):
+def initialize_models(model_dir: str) -> None:
+    """Initialize ML models at startup."""
+    global _LOADED_MODELS
     model_dir = os.path.abspath(model_dir)
-    print(f"Loading audio file from: {audio_file_path}")
+    logger.info("Initializing ML models...")
 
-    # Define model configurations
-    models = {
-        "discogs400": {
-            "embedding": "discogs-effnet-bs64-1.pb",
-            "genre": "genre_discogs400-discogs-effnet-1.pb",
-            "metadata": "genre_discogs400-discogs-effnet-1.json",
-            "input": "serving_default_model_Placeholder",
-            "output": "PartitionedCall:0",
-            "is_hierarchical": True,  # Uses umbrella/sub-genre format
-        },
-        # "mtg_general": {
-        #     "embedding": "discogs-effnet-bs64-1.pb",
-        #     "genre": "mtg_jamendo_genre-discogs-effnet-1.pb",
-        #     "metadata": "mtg_jamendo_genre-discogs-effnet-1.json",
-        #     "input": "model/Placeholder",
-        #     "output": "model/Sigmoid",
-        #     "is_hierarchical": False,
-        # },
-        # "mtg_track": {
-        #     "embedding": "discogs_track_embeddings-effnet-bs64-1.pb",
-        #     "genre": "mtg_jamendo_genre-discogs_track_embeddings-effnet-1.pb",
-        #     "metadata": "mtg_jamendo_genre-discogs_track_embeddings-effnet-1.json",
-        #     "input": "model/Placeholder",
-        #     "output": "model/Sigmoid",
-        #     "is_hierarchical": False,
-        # },
-    }
-
-    # Load audio once
-    audio = MonoLoader(filename=audio_file_path, sampleRate=16000, resampleQuality=4)()
-    frame_size = int(16000 * segment_length)
-    segment_frames = list(
-        FrameGenerator(
-            audio, frameSize=frame_size, hopSize=frame_size // 2, startFromZero=True
-        )
-    )
-
-    all_results = {}
-
-    for model_name, model_config in models.items():
+    # Start with just genre models as a test
+    for model_name, config in GENRE_MODELS.items():
         try:
-            print(f"\nProcessing with {model_name} model...")
+            # Load embedding model
+            embedding_path = os.path.join(model_dir, config["embedding"])
+            logger.info(f"Loading {model_name} embedding model from: {embedding_path}")
 
-            # Initialize models
-            embedding_model = None
-            genre_model = None
-
-            # Load metadata
-            genre_metadata_path = os.path.join(model_dir, model_config["metadata"])
-            genre_metadata = load_json_metadata(genre_metadata_path)
-            genre_labels = genre_metadata["classes"]
-
-            # Initialize prediction arrays
-            num_classes = len(genre_labels)
-            weighted_sum = np.zeros(num_classes)
-            total_weight = 0.0
-            genre_counts = np.zeros(num_classes)
-            all_predictions = []
-
-            # Process segments
-            for i, segment in enumerate(segment_frames):
-                print(
-                    f"Generating embeddings for segment {i+1}/{len(segment_frames)}..."
-                )
-                normalized_segment = normalize_audio(segment)
-
-                # Load embedding model if needed
-                if embedding_model is None:
-                    embedding_model_path = os.path.join(
-                        model_dir, model_config["embedding"]
-                    )
-                    print(f"Loading embedding model from: {embedding_model_path}")
-                    embedding_model = TensorflowPredictEffnetDiscogs(
-                        graphFilename=embedding_model_path, output="PartitionedCall:1"
-                    )
-
-                embeddings = embedding_model(normalized_segment)
-
-                # Load genre model if needed
-                if genre_model is None:
-                    genre_model_path = os.path.join(model_dir, model_config["genre"])
-                    print(f"Loading genre model from: {genre_model_path}")
-                    genre_model = TensorflowPredict2D(
-                        graphFilename=genre_model_path,
-                        input=model_config["input"],
-                        output=model_config["output"],
-                    )
-
-                predictions = genre_model(embeddings)[0]
-                weight = np.max(predictions)
-                weighted_sum += predictions * weight
-                total_weight += weight
-                genre_counts += predictions > 0.07
-                all_predictions.append(predictions)
-
-            # Calculate final predictions
-            if total_weight > 0:
-                averaged_predictions = weighted_sum / total_weight
-            else:
-                averaged_predictions = weighted_sum
-
-            frequency_weight = 0.2
-            refined_predictions = averaged_predictions + frequency_weight * (
-                genre_counts / len(segment_frames)
+            embedding_model = TensorflowPredictEffnetDiscogs(
+                graphFilename=embedding_path, output="PartitionedCall:1"
             )
 
-            # Get top predictions
-            threshold = 0.07
-            top_indices = np.argsort(refined_predictions)[-15:][::-1]
-            top_genres = [
-                (genre_labels[i], float(refined_predictions[i]))
-                for i in top_indices
-                if refined_predictions[i] > threshold
-            ]
+            # Load genre model
+            genre_path = os.path.join(model_dir, config["genre"])
+            logger.info(f"Loading {model_name} genre model from: {genre_path}")
 
-            # Format results based on model type
-            if model_config["is_hierarchical"]:
-                # Format for Discogs400 (hierarchical)
-                formatted_results = {}
-                for genre_label, confidence in top_genres:
-                    umbrella_genre, sub_genre = genre_label.split("---")
-                    if umbrella_genre not in formatted_results:
-                        formatted_results[umbrella_genre] = {}
-                    formatted_results[umbrella_genre][sub_genre] = round(confidence, 2)
-            else:
-                # Format for MTG models (flat)
-                formatted_results = {
-                    genre_label: round(confidence, 2)
-                    for genre_label, confidence in top_genres
-                }
+            genre_model = TensorflowPredict2D(
+                graphFilename=genre_path, input=config["input"], output=config["output"]
+            )
 
-            all_results[model_name] = formatted_results
+            # Load metadata
+            metadata_path = os.path.join(model_dir, config["metadata"])
+            metadata = load_json_metadata(metadata_path)
+
+            # Store everything
+            _LOADED_MODELS["genre"][model_name] = {
+                "embedding": embedding_model,
+                "prediction": genre_model,
+                "metadata": metadata,
+                "is_hierarchical": config["is_hierarchical"],
+            }
+
+            logger.info(f"Successfully loaded {model_name} models")
 
         except Exception as e:
-            print(f"Error processing {model_name}: {str(e)}")
-            all_results[model_name] = {"error": str(e)}
+            logger.error(f"Failed to load {model_name} models: {str(e)}")
+            _LOADED_MODELS["genre"][model_name] = {"error": str(e)}
 
-    return all_results
+
+async def predict_genre_from_segments(audio_file_path: str, segment_length: int = 45):
+    try:
+        # Load audio with balanced quality/speed
+        audio = MonoLoader(
+            filename=audio_file_path, sampleRate=16000, resampleQuality=4
+        )()
+        frame_size = int(16000 * segment_length)
+
+        # Generate segments
+        segments = np.array(
+            list(
+                FrameGenerator(
+                    audio,
+                    frameSize=frame_size,
+                    hopSize=frame_size // 2,
+                    startFromZero=True,
+                )
+            )
+        )
+
+        all_results = {}
+
+        # Use a smaller thread pool
+        executor = ThreadPoolExecutor(max_workers=4)
+
+        for model_name, model_data in _LOADED_MODELS["genre"].items():
+            if "error" in model_data:
+                all_results[model_name] = model_data
+                continue
+
+            try:
+                num_classes = len(model_data["metadata"]["classes"])
+                weighted_sum = np.zeros(num_classes, dtype=np.float32)
+                total_weight = 0.0
+                genre_counts = np.zeros(num_classes, dtype=np.float32)
+
+                # Process segments sequentially but use the thread pool for each segment
+                async def process_segment(segment):
+                    def _process():
+                        normalized = normalize_audio(segment)
+                        embeddings = model_data["embedding"](normalized)
+                        return model_data["prediction"](embeddings)[0]
+
+                    return await asyncio.get_event_loop().run_in_executor(
+                        executor, _process
+                    )
+
+                # Process segments with minimal overhead
+                for segment in segments:
+                    predictions = await process_segment(segment)
+                    weight = float(np.max(predictions))
+                    weighted_sum += predictions * weight
+                    total_weight += weight
+                    genre_counts += predictions > 0.07
+
+                # Calculate final predictions
+                averaged = (
+                    weighted_sum / total_weight if total_weight > 0 else weighted_sum
+                )
+                refined_predictions = averaged + 0.2 * (genre_counts / len(segments))
+
+                # Get top genres
+                top_indices = np.argsort(refined_predictions)[-15:][::-1]
+                top_genres = [
+                    (
+                        model_data["metadata"]["classes"][i],
+                        float(refined_predictions[i]),
+                    )
+                    for i in top_indices
+                    if refined_predictions[i] > 0.07
+                ]
+
+                # Format results
+                if model_data["is_hierarchical"]:
+                    formatted_results = {}
+                    for genre_label, confidence in top_genres:
+                        umbrella_genre, sub_genre = genre_label.split("---")
+                        if umbrella_genre not in formatted_results:
+                            formatted_results[umbrella_genre] = {"subgenres": {}}
+                        formatted_results[umbrella_genre]["subgenres"][sub_genre] = (
+                            round(confidence, 2)
+                        )
+                else:
+                    formatted_results = {
+                        genre_label: round(confidence, 2)
+                        for genre_label, confidence in top_genres
+                    }
+
+                all_results[model_name] = formatted_results
+
+            except Exception as e:
+                logger.error(f"Error processing {model_name}: {str(e)}")
+                all_results[model_name] = {"error": str(e)}
+
+        return all_results
+
+    except Exception as e:
+        logger.error(f"Error in predict_genre_from_segments: {str(e)}")
+        raise
 
 
 def predict_mood_theme_from_audio(

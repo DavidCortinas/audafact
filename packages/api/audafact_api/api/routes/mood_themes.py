@@ -2,9 +2,9 @@ import tempfile
 from fastapi import APIRouter, File, UploadFile, HTTPException, Query
 from fastapi.responses import JSONResponse
 import logging
-from ...services.audio import predict_mood_theme_from_audio
-from ...services.downloader import download_audio_from_url
-from ...core.config import settings
+from services.audio import predict_mood_theme_from_audio
+from services.downloader import download_audio_from_url
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
