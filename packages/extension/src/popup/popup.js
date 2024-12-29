@@ -3,253 +3,291 @@ import { createRoot } from 'react-dom/client';
 import './popup.css';
 import storage from '../utils/storage';
 
-function GenreList({ genres, showAll }) {
-  const threshold = showAll ? 0 : 0.1;
-  
-  return Object.entries(genres)
-    .filter(([_, confidence]) => confidence >= threshold)
-    .sort(([_a, a], [_b, b]) => b - a)
-    .map(([genre, confidence]) => (
-      <li key={genre}>
-        <span className="genre">{genre}</span>
-        <span className={`confidence ${confidence < 0.1 ? 'low-confidence' : ''}`}>
-          {(confidence * 100).toFixed(0)}%
-        </span>
-      </li>
-    ));
+const DEBUG = true;
+const debugLog = (message, data) => {
+  if (DEBUG) {
+    console.log(`[Popup ${new Date().toISOString()}] ${message}`, data || '');
+  }
+};
+
+// Results display components
+function GenreResults({ data }) {
+  return (
+    <div className="results-container">
+      <h3>Genre Analysis</h3>
+      {Object.entries(data).map(([mainGenre, subGenres]) => (
+        <div key={mainGenre} className="genre-section">
+          <h4>{mainGenre}</h4>
+          <ul className="results-list">
+            {Object.entries(subGenres)
+              .sort(([, a], [, b]) => b - a)
+              .map(([subGenre, confidence]) => (
+                <li key={`${mainGenre}-${subGenre}`} className="result-item">
+                  <span className="genre">{subGenre}</span>
+                  <span className="confidence">
+                    {Math.round(confidence * 100)}%
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
 }
 
-function DiscogsList({ genres, showAll }) {
-  const threshold = showAll ? 0 : 0.1;
-  
-  return Object.entries(genres).map(([category, subGenres]) => {
-    const filteredGenres = Object.entries(subGenres)
-      .filter(([_, confidence]) => confidence >= threshold)
-      .sort(([_a, a], [_b, b]) => b - a);
-      
-    if (filteredGenres.length === 0) return null;
-    
-    return (
-      <div key={category} className="category">
-        <h3>{category}</h3>
-        <ul>
-          {filteredGenres.map(([genre, confidence]) => (
-            <li key={genre}>
-              <span className="genre">{genre}</span>
-              <span className={`confidence ${confidence < 0.1 ? 'low-confidence' : ''}`}>
-                {(confidence * 100).toFixed(0)}%
-              </span>
-            </li>
-          ))}
+function MoodThemeResults({ data }) {
+  const { general, track_level } = data.mood_themes;
+
+  return (
+    <div className="results-container">
+      <div className="mood-section">
+        <h3>General Moods & Themes</h3>
+        <ul className="results-list">
+          {Object.entries(general)
+            .sort(([_a, a], [_b, b]) => b - a)
+            .map(([mood, confidence]) => (
+              <li key={mood} className="result-item">
+                <span className="mood">{mood}</span>
+                <span className="confidence">
+                  {(confidence * 100).toFixed(0)}%
+                </span>
+              </li>
+            ))}
         </ul>
       </div>
-    );
-  }).filter(Boolean);
+
+      <div className="mood-section">
+        <h3>Track-Level Moods & Themes</h3>
+        <ul className="results-list">
+          {Object.entries(track_level)
+            .sort(([_a, a], [_b, b]) => b - a)
+            .map(([mood, confidence]) => (
+              <li key={mood} className="result-item">
+                <span className="mood">{mood}</span>
+                <span className="confidence">
+                  {(confidence * 100).toFixed(0)}%
+                </span>
+              </li>
+            ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function TagResults({ data }) {
+  return (
+    <div className="results-container">
+      {Object.entries(data.predictions).map(([category, tags]) => (
+        <div key={category} className="tag-section">
+          <h3>{category.replace(/_/g, ' ').toUpperCase()}</h3>
+          <ul className="results-list">
+            {Object.entries(tags)
+              .sort(([_a, a], [_b, b]) => b - a)
+              .map(([tag, confidence]) => (
+                <li key={tag} className="result-item">
+                  <span className="tag">{tag}</span>
+                  <span className="confidence">
+                    {(confidence * 100).toFixed(0)}%
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function Popup() {
-  const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [showAll, setShowAll] = useState(false);
   const [currentUrl, setCurrentUrl] = useState('');
+  const [activeTab, setActiveTab] = useState('genres');
+  const [results, setResults] = useState({
+    genres: null,
+    moodThemes: null,
+    tags: null
+  });
+  const [loading, setLoading] = useState({
+    genres: false,
+    moodThemes: false,
+    tags: false
+  });
+  const [error, setError] = useState({
+    genres: null,
+    moodThemes: null,
+    tags: null
+  });
 
+  // Get current URL when popup opens
   useEffect(() => {
-    console.log("Popup mounted");
-    
-    // Force reset loading state on popup open
-    chrome.storage.local.set({ analysisLoading: false });
-    
-    // Load initial state
-    chrome.storage.local.get(['analysisResults'], (data) => {
-      console.log("Initial storage data:", data);
-      if (data.analysisResults) {
-        console.log("Setting initial results:", data.analysisResults);
-        setResults(data.analysisResults);
-      }
-      setLoading(false);
-    });
-
-    // Get current tab URL
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.url) {
         setCurrentUrl(tabs[0].url);
+        debugLog('Current URL set:', tabs[0].url);
       }
     });
+  }, []);
 
-    // Listen for messages
-    const messageListener = (message) => {
-      console.log('Popup received message:', message);
+  const handleAnalyze = async (type) => {
+    debugLog(`Analyze ${type} clicked for URL:`, currentUrl);
+    
+    // Set loading state BEFORE sending the message
+    setLoading(prev => ({
+      ...prev,
+      [type]: true
+    }));
+
+    // Also set loading state in storage
+    await chrome.storage.local.set({
+      [`${type}Loading`]: true,
+      [`${type}Results`]: null,  // Clear previous results
+      [`${type}Error`]: null     // Clear previous errors
+    });
+
+    // Send message to background script
+    chrome.runtime.sendMessage({
+      type: 'ANALYZE_URL',
+      url: currentUrl,
+      analysisType: type
+    });
+  };
+
+  // Storage change listener
+  useEffect(() => {
+    const handleStorageChange = (changes, area) => {
+      debugLog('Storage changes:', changes);
       
-      if (message.type === "ANALYSIS_RESULTS") {
-        console.log("Setting results from message:", message.data);
-        setResults(message.data);
-        setLoading(false);
-        setError(null);
-        chrome.storage.local.set({ 
-          analysisLoading: false,
-          analysisResults: message.data 
-        });
-      } else if (message.type === "ANALYSIS_ERROR") {
-        console.log("Setting error from message:", message.error);
-        setError(message.error);
-        setLoading(false);
-        setResults(null);
-        chrome.storage.local.set({ 
-          analysisLoading: false,
-          error: message.error,
-          analysisResults: null
-        });
-      }
-    };
-
-    chrome.runtime.onMessage.addListener(messageListener);
-
-    // Debug current state
-    chrome.storage.local.get(null, (items) => {
-      console.log('Current storage state:', items);
-    });
-
-    // Always check storage when popup opens
-    chrome.storage.local.get(
-      ['analysisResults', 'analysisLoading', 'error'],
-      (data) => {
-        if (data.analysisResults) setResults(data.analysisResults);
-        setLoading(!!data.analysisLoading);
-        setError(data.error || null);
-      }
-    );
-
-    const handleStorageChange = (changes) => {
-      if (changes.analysisResults?.newValue) {
-        setResults(changes.analysisResults.newValue);
-      }
-      if (changes.analysisLoading?.newValue !== undefined) {
-        setLoading(changes.analysisLoading.newValue);
-      }
-      if (changes.error?.newValue !== undefined) {
-        setError(changes.error.newValue);
+      for (const [key, { newValue }] of Object.entries(changes)) {
+        // Handle loading state changes
+        if (key.endsWith('Loading')) {
+          const type = key.replace('Loading', '');
+          setLoading(prev => ({
+            ...prev,
+            [type]: !!newValue  // Ensure boolean value
+          }));
+        }
+        // Handle results
+        if (key.endsWith('Results') && newValue) {
+          const type = key.replace('Results', '');
+          setResults(prev => ({
+            ...prev,
+            [type]: newValue
+          }));
+          // Set loading to false when results arrive
+          setLoading(prev => ({
+            ...prev,
+            [type]: false
+          }));
+        }
+        // Handle errors
+        if (key.endsWith('Error') && newValue) {
+          const type = key.replace('Error', '');
+          setError(prev => ({
+            ...prev,
+            [type]: newValue
+          }));
+          // Set loading to false when error occurs
+          setLoading(prev => ({
+            ...prev,
+            [type]: false
+          }));
+        }
       }
     };
 
     chrome.storage.onChanged.addListener(handleStorageChange);
-    return () => {
-      console.log("Popup unmounting");
-      chrome.runtime.onMessage.removeListener(messageListener);
-      chrome.storage.onChanged.removeListener(handleStorageChange);
-    };
+    return () => chrome.storage.onChanged.removeListener(handleStorageChange);
   }, []);
-
-  const handleReset = async () => {
-    setResults(null);
-    setLoading(false);
-    setError(null);
-    setShowAll(false);
-    
-    try {
-      await chrome.storage.local.clear(); // Clear all stored data
-      console.log('Storage cleared successfully');
-    } catch (err) {
-      console.error('Error clearing stored results:', err);
-    }
-  };
-
-  const handleManualAnalyze = async () => {
-    await handleReset(); // Reset before starting new analysis
-    setLoading(true);
-    
-    try {
-      await chrome.storage.local.set({
-        analysisLoading: true
-      });
-      
-      chrome.runtime.sendMessage({
-        type: 'ANALYZE_URL',
-        url: currentUrl,
-        manual: true
-      });
-    } catch (err) {
-      console.error('Error storing analysis state:', err);
-      setError('Failed to start analysis');
-      setLoading(false);
-    }
-  };
-
-  const modelNames = {
-    discogs400: 'Discogs 400',
-    mtg_general: 'MTG General',
-    mtg_track: 'MTG Track'
-  };
 
   return (
     <div className="popup">
       <div className="header">
-        <img 
-          src="../assets/audafact-temp.png"
-          alt="Audafact Logo"
-          className="logo"
-        />
-        <div className="title-container">
-          <h1>Audafact Music Intelligence</h1>
-        </div>
-        <label className="toggle-container">
-          <input
-            type="checkbox"
-            checked={showAll}
-            onChange={(e) => setShowAll(e.target.checked)}
-          />
-          <span className="toggle-label">Show all results</span>
-        </label>
+        <img src="../assets/audafact-temp.png" alt="Audafact Logo" className="logo" />
+        <h1>Audafact Music Intelligence</h1>
       </div>
 
-      {results && (
-        <div className="results-actions">
-          <button 
-            onClick={handleReset}
-            className="reset-button"
-          >
-            New Analysis
-          </button>
-        </div>
-      )}
-      
-      {!results && !loading && (
+      <div className="tabs">
         <button 
-          onClick={handleManualAnalyze} 
-          disabled={loading}
-          className="analyze-button"
+          className={activeTab === 'genres' ? 'active' : ''} 
+          onClick={() => setActiveTab('genres')}
         >
-          Analyze Current Page
+          Genres
         </button>
-      )}
-      
-      {loading && (
-        <div className="loading">
-          <div className="spinner"></div>
-          Analyzing audio...
-        </div>
-      )}
+        <button 
+          className={activeTab === 'moodThemes' ? 'active' : ''} 
+          onClick={() => setActiveTab('moodThemes')}
+        >
+          Mood & Themes
+        </button>
+        <button 
+          className={activeTab === 'tags' ? 'active' : ''} 
+          onClick={() => setActiveTab('tags')}
+        >
+          Tags
+        </button>
+      </div>
 
-      {error && (
-        <div className="error">{error}</div>
-      )}
-
-      {results && results.genres && (
-        <div className="results">
-          {Object.entries(results.genres).map(([model, genres]) => (
-            <div key={model} className="model-results">
-              <h2>{modelNames[model] || model}</h2>
-              {model === 'discogs400' ? (
-                <DiscogsList genres={genres} showAll={showAll} />
-              ) : (
-                <ul>
-                  <GenreList genres={genres} showAll={showAll} />
-                </ul>
+      <div className="content">
+        <div className="analysis-section">
+          {activeTab === 'genres' && (
+            <>
+              <button 
+                onClick={() => handleAnalyze('genres')} 
+                disabled={loading.genres}
+                className="analyze-button"
+              >
+                {loading.genres ? 'Analyzing...' : 'Analyze Genres'}
+              </button>
+              {loading.genres && (
+                <div className="loading-container">
+                  <div className="loading">Analyzing genres...</div>
+                </div>
               )}
-            </div>
-          ))}
+              {error.genres && <div className="error">{error.genres}</div>}
+              {results.genres && <GenreResults data={results.genres} />}
+            </>
+          )}
+
+          {activeTab === 'moodThemes' && (
+            <>
+              <button 
+                onClick={() => handleAnalyze('moodThemes')} 
+                disabled={loading.moodThemes}
+                className="analyze-button"
+              >
+                {loading.moodThemes ? 'Analyzing...' : 'Analyze Mood & Themes'}
+              </button>
+              {loading.moodThemes && (
+                <div className="loading-container">
+                  <div className="loading">Analyzing mood & themes...</div>
+                </div>
+              )}
+              {error.moodThemes && <div className="error">{error.moodThemes}</div>}
+              {results.moodThemes && <MoodThemeResults data={results.moodThemes} />}
+            </>
+          )}
+
+          {activeTab === 'tags' && (
+            <>
+              <button 
+                onClick={() => handleAnalyze('tags')} 
+                disabled={loading.tags}
+                className="analyze-button"
+              >
+                {loading.tags ? 'Analyzing...' : 'Analyze Tags'}
+              </button>
+              {loading.tags && (
+                <div className="loading-container">
+                  <div className="loading">Analyzing tags...</div>
+                </div>
+              )}
+              {error.tags && <div className="error">{error.tags}</div>}
+              {results.tags && <TagResults data={results.tags} />}
+            </>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
