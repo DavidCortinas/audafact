@@ -1,7 +1,9 @@
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Must be set before importing TF
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Must be set before importing TF
 
 from utils.logging_config import configure_logging
+
 configure_logging()
 
 import logging
