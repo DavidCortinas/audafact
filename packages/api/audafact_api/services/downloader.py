@@ -5,6 +5,8 @@ import yt_dlp
 import logging
 from fastapi import HTTPException
 import random
+from functools import lru_cache
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,18 @@ def get_rotating_headers():
     }
 
 
-def download_audio_from_url(url):
+@lru_cache(maxsize=32)
+def get_cached_audio_path(url: str) -> str:
+    """Cache the downloaded audio file path based on URL hash"""
+    url_hash = hashlib.md5(url.encode()).hexdigest()
+    return f"/tmp/audio_cache_{url_hash}.wav"
+
+
+async def download_audio_from_url(url: str) -> str:
+    cached_path = get_cached_audio_path(url)
+    if os.path.exists(cached_path):
+        return cached_path
+        
     try:
         temp_dir = tempfile.gettempdir()
         temp_audio_path = os.path.join(temp_dir, "downloaded_audio.wav")

@@ -1,3 +1,9 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Must be set before importing TF
+
+from utils.logging_config import configure_logging
+configure_logging()
+
 import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,26 +35,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# At the start of your app initialization
+configure_logging()
+
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize ML models and verify configuration."""
-    logger.info("Initializing ML models...")
-    try:
-        initialize_models(settings.MODEL_PATH)
-        logger.info("ML models initialized successfully")
-
-        # Add this section to verify Spotify credentials
-        logger.info("Checking Spotify credentials...")
-        if settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET:
-            logger.info("Spotify credentials found")
-            logger.info(f"Client ID starts with: {settings.SPOTIFY_CLIENT_ID[:5]}...")
-        else:
-            logger.warning("Spotify credentials not found in environment!")
-
-    except Exception as e:
-        logger.error(f"Failed to initialize: {str(e)}")
-        raise
+    """Initialize models when the app starts"""
+    initialize_models(settings.MODEL_PATH)
 
 
 @app.middleware("http")

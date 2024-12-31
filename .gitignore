@@ -6,6 +6,8 @@ temp/
 
 # Specific files to ignore
 lab/essentia/models/run.py
+packages/api/audafact_api/services/experiment.py
+packages/api/audafact_api/.env
 .env.txt
 genre_analysis.log
 .env
