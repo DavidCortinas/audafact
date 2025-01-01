@@ -3,13 +3,13 @@ from fastapi.responses import JSONResponse
 import logging
 import tempfile
 import os
-from services.audio import (
+from ...services.audio import (
     predict_tags_from_segments,
     predict_tags_from_file,
     predict_tags_from_qtrs
 )
-from services.downloader import download_audio_from_url
-from core.config import settings
+from ...services.downloader import download_audio_from_url
+from ...core.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -48,18 +48,15 @@ async def get_tags_by_file(file: UploadFile = File(..., max_size=10 * 1024 * 102
             audio_file_path = temp_audio.name
 
             # Get predictions using both methods
-            segmented_predictions = predict_tags_from_segments(
+            segmented_predictions = await predict_tags_from_segments(
                 audio_file_path, settings.MODEL_PATH
             )
-            full_file_predictions = predict_tags_from_file(
-                audio_file_path, settings.MODEL_PATH
-            )
+            # full_file_predictions = predict_tags_from_file(
+            #     audio_file_path, settings.MODEL_PATH
+            # )
 
             return JSONResponse(
-                content={
-                    "segmented": segmented_predictions,
-                    "full_file": full_file_predictions,
-                }
+                content=segmented_predictions,
             )
 
     except Exception as e:

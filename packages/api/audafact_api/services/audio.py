@@ -13,7 +13,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import tensorflow as tf
 import warnings
-from utils.logging_config import configure_logging
+from ..utils.logging_config import configure_logging
 from typing import Dict, Any
 
 configure_logging()
@@ -232,7 +232,7 @@ async def predict_genre_from_segments(
             )
 
             # Get top predictions
-            threshold = 0.07
+            threshold = 0.05
             top_indices = np.argsort(refined_predictions)[-15:][::-1]
             top_genres = [
                 (genre_labels[i], float(refined_predictions[i]))

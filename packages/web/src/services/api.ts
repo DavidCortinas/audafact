@@ -17,7 +17,7 @@ const api = axios.create({
   timeout: 120000,
   headers: {
     "Content-Type": "application/json",
-  }
+  },
 });
 
 interface RawAnalysisResponse {
@@ -27,6 +27,62 @@ interface RawAnalysisResponse {
 }
 
 export class ApiService {
+  static async analyzeGenres(
+    file: File,
+    onProgress?: (progress: UploadProgress) => void
+  ) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await this.uploadFile(
+      "/genres/file",
+      formData,
+      onProgress
+    );
+    return response.data?.genres || [];
+  }
+
+  static async analyzeMoodThemes(
+    file: File,
+    onProgress?: (progress: UploadProgress) => void
+  ) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await this.uploadFile(
+      "/mood-themes/file",
+      formData,
+      onProgress
+    );
+    return response.data?.mood_themes || [];
+  }
+
+  static async analyzeTags(
+    file: File,
+    onProgress?: (progress: UploadProgress) => void
+  ) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await this.uploadFile("/tags/file", formData, onProgress);
+    // Handle both segmented and full file predictions
+    const predictions =
+      response.data?.segmented || response.data?.full_file || [];
+    return predictions;
+  }
+
+  static async analyzeGenresUrl(url: string) {
+    const response = await api.get("/genres/url", { params: { url } });
+    return response.data?.genres || [];
+  }
+
+  static async analyzeMoodThemesUrl(url: string) {
+    const response = await api.get("/mood-themes/url", { params: { url } });
+    return response.data?.mood_themes || [];
+  }
+
+  static async analyzeTagsUrl(url: string) {
+    const response = await api.get("/tags/url", { params: { url } });
+    return response.data?.predictions || [];
+  }
+
   static async analyzeFile(
     file: File,
     onProgress?: (progress: UploadProgress) => void
@@ -39,19 +95,19 @@ export class ApiService {
         const [genresRes, moodThemesRes, tagsRes] = await Promise.all([
           this.uploadFile("/genres/file", formData, onProgress),
           this.uploadFile("/mood-themes/file", formData, onProgress),
-          this.uploadFile("/tags/file", formData, onProgress)
+          this.uploadFile("/tags/file", formData, onProgress),
         ]);
 
         return {
           genres: genresRes.data || [],
           moodThemes: moodThemesRes.data || [],
-          tags: tagsRes.data || []
+          tags: tagsRes.data || [],
         };
       });
 
       const transformedResponse = transformAnalysisResponse({
         success: true,
-        ...result
+        ...result,
       });
 
       return validateAnalysisResponse(transformedResponse);
@@ -65,26 +121,20 @@ export class ApiService {
     onProgress?: (progress: UploadProgress) => void
   ): Promise<AnalysisResponse> {
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      // Sequential analysis
+      const genres = await this.analyzeGenres(file, onProgress);
+      const moodThemes = await this.analyzeMoodThemes(file, onProgress);
+      const tags = await this.analyzeTags(file, onProgress);
 
-      const result = await withRetry(async () => {
-        const [genresRes, moodThemesRes, tagsRes] = await Promise.all([
-          this.uploadFile("/genres/file/quick", formData, onProgress),
-          this.uploadFile("/mood-themes/file", formData, onProgress),
-          this.uploadFile("/tags/file/quick", formData, onProgress)
-        ]);
-
-        return {
-          genres: genresRes.data?.genres || [],
-          moodThemes: moodThemesRes.data || [],
-          tags: tagsRes.data?.predictions || []
-        };
-      });
+      const result = {
+        genres,
+        moodThemes,
+        tags,
+      };
 
       const transformedResponse = transformAnalysisResponse({
         success: true,
-        ...result
+        ...result,
       });
 
       return validateAnalysisResponse(transformedResponse);
@@ -99,19 +149,19 @@ export class ApiService {
         const [genresRes, moodThemesRes, tagsRes] = await Promise.all([
           api.get("/genres/url", { params: { url } }),
           api.get("/mood-themes/url", { params: { url } }),
-          api.get("/tags/url", { params: { url } })
+          api.get("/tags/url", { params: { url } }),
         ]);
 
         return {
           genres: genresRes.data || [],
           moodThemes: moodThemesRes.data || [],
-          tags: tagsRes.data || []
+          tags: tagsRes.data || [],
         };
       });
 
       const transformedResponse = transformAnalysisResponse({
         success: true,
-        ...result
+        ...result,
       });
 
       return validateAnalysisResponse(transformedResponse);
@@ -122,14 +172,20 @@ export class ApiService {
 
   static async analyzeUrlQuick(url: string): Promise<AnalysisResponse> {
     try {
-      const result = await withRetry(async () => {
-        const response = await api.get("/analysis/url/quick", { params: { url } });
-        return response.data;
-      });
+      // Sequential analysis
+      const genres = await this.analyzeGenresUrl(url);
+      const moodThemes = await this.analyzeMoodThemesUrl(url);
+      const tags = await this.analyzeTagsUrl(url);
+
+      const result = {
+        genres,
+        moodThemes,
+        tags,
+      };
 
       const transformedResponse = transformAnalysisResponse({
         success: true,
-        ...result
+        ...result,
       });
 
       return validateAnalysisResponse(transformedResponse);

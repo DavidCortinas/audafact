@@ -2,7 +2,7 @@ import os
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Must be set before importing TF
 
-from utils.logging_config import configure_logging
+from ..utils.logging_config import configure_logging
 
 configure_logging()
 
@@ -11,10 +11,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from .routes import analysis, spotify
-from services.audio import initialize_models
+from ..services.audio import initialize_models
 from .middleware.size_limit import MaxSizeLimitMiddleware
 from .routes import genres, mood_themes, tags
-from core.config import settings
+from ..core.config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,15 +27,17 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-app.add_middleware(MaxSizeLimitMiddleware, max_upload_size=10 * 1024 * 1024)
-
+# Add CORS middleware first
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOW_ORIGINS,  # Modify this in production
+    allow_origins=settings.ALLOW_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Then add size limit middleware
+app.add_middleware(MaxSizeLimitMiddleware, max_upload_size=10 * 1024 * 1024)
 
 # At the start of your app initialization
 configure_logging()

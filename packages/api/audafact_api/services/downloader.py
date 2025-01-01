@@ -1,6 +1,6 @@
 import tempfile
 import os
-from shared.constants.headers import ROTATING_USER_AGENTS
+from ..shared.constants.headers import ROTATING_USER_AGENTS
 import yt_dlp
 import logging
 from fastapi import HTTPException

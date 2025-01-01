@@ -5,13 +5,13 @@ from pydantic import BaseModel
 import logging
 import os
 import tempfile
-from services.audio import (
+from ...services.audio import (
     analyze_audio_quick,
     predict_genre_from_segments,
     predict_genre_from_qtrs,
 )
-from services.downloader import download_audio_from_url
-from core.config import settings
+from ...services.downloader import download_audio_from_url
+from ...core.config import settings
 import asyncio
 
 logger = logging.getLogger(__name__)

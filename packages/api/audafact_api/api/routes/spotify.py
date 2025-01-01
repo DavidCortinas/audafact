@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 from typing import List
 import logging
-from services.spotify import SpotifyClient
-from core.config import settings
+from ...services.spotify import SpotifyClient
+from ...core.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

@@ -4,8 +4,8 @@ import logging
 import asyncio
 import os
 from typing import Dict, Any
-from services.downloader import download_audio_from_url
-from services.audio import analyze_audio_quick
+from ...services.downloader import download_audio_from_url
+from ...services.audio import analyze_audio_quick
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
