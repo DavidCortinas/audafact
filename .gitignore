@@ -10,6 +10,7 @@ temp/
 lab/essentia/models/run.py
 packages/api/audafact_api/services/experiment.py
 packages/api/audafact_api/.env
+packages/api/.env
 .env.txt
 genre_analysis.log
 

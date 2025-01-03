@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Typography, Button, Chip, Paper } from '@mui/material';
 import { useAnalysis } from '../../../context/AnalysisContext';
+import { ApiService } from '../../../services/api';
 
 interface GenreSelectionStepProps {
   onNext: () => void;
@@ -24,6 +25,22 @@ export const GenreSelectionStep: React.FC<GenreSelectionStepProps> = ({ onNext, 
       }
       return newSet;
     });
+  };
+
+  const handleContinue = async () => {
+    try {
+      const selectedGenreNames = Array.from(selectedGenres).map(id => 
+        genres.find(g => g.id === id)?.name || ''
+      ).filter(name => name !== '');
+      
+      const results = await ApiService.searchSpotify(selectedGenreNames);
+      console.log('Spotify search results:', results);
+      
+      onNext();
+    } catch (error) {
+      console.error('Error searching Spotify:', error);
+      // Optionally add error handling UI
+    }
   };
 
   return (
@@ -64,7 +81,7 @@ export const GenreSelectionStep: React.FC<GenreSelectionStepProps> = ({ onNext, 
           Back
         </Button>
         <Button 
-          onClick={onNext} 
+          onClick={handleContinue} 
           variant="contained"
           disabled={selectedGenres.size === 0}
         >

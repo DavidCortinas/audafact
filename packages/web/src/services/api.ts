@@ -194,6 +194,30 @@ export class ApiService {
     }
   }
 
+  static async searchSpotify(genres: string[]) {
+    const results = await Promise.all(
+      genres.map(async (genre) => {
+        const params = new URLSearchParams();
+        params.append("genres", genre);
+        params.append("types", "artist");
+        params.append("types", "playlist");
+        params.append("limit", "50");
+
+        const response = await api.get(`/spotify/search?${params.toString()}`);
+        return response.data;
+      })
+    );
+
+    // Combine results from all genre searches
+    return results.reduce(
+      (acc, result) => ({
+        artists: [...(acc.artists || []), ...(result.artists || [])],
+        playlists: [...(acc.playlists || []), ...(result.playlists || [])],
+      }),
+      { artists: [], playlists: [] }
+    );
+  }
+
   private static async uploadFile(
     endpoint: string,
     formData: FormData,
