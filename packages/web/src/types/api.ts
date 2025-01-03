@@ -20,7 +20,7 @@ export interface MoodTheme {
   id: string;
   name: string;
   confidence: number;
-  category: 'mood' | 'theme';
+  category: "mood" | "theme";
 }
 
 export interface MoodThemeAnalysisResponse extends ApiResponse {

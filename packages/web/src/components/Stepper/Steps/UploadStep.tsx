@@ -71,15 +71,29 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onNext }) => {
           setUploadProgress(progress.progress);
         }
       });
-      setPartialResults(prev => ({ ...prev, tags }));
+      const transformedTags = [
+        ...Object.entries(tags.mtg_jamendo_general || {}).map(([name, confidence]) => ({
+          name,
+          confidence
+        })),
+        ...Object.entries(tags.mtg_jamendo_track || {}).map(([name, confidence]) => ({
+          name,
+          confidence
+        }))
+      ];
+      setPartialResults(prev => ({ ...prev, tags: transformedTags }));
 
       const result = transformAnalysisResponse({
         success: true,
         genres,
         moodThemes,
-        tags
+        tags: {
+          mtg_jamendo_general: tags.mtg_jamendo_general,
+          mtg_jamendo_track: tags.mtg_jamendo_track
+        }
       });
-
+      console.log('Raw API data:', { genres, moodThemes, tags });
+      console.log('Transformed result:', result);
       dispatch({ type: 'ANALYSIS_SUCCESS', payload: validateAnalysisResponse(result) });
       
       setTimeout(() => {

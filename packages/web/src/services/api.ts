@@ -62,10 +62,10 @@ export class ApiService {
     const formData = new FormData();
     formData.append("file", file);
     const response = await this.uploadFile("/tags/file", formData, onProgress);
-    // Handle both segmented and full file predictions
-    const predictions =
-      response.data?.segmented || response.data?.full_file || [];
-    return predictions;
+    return {
+      mtg_jamendo_general: response.data?.mtg_jamendo_general || {},
+      mtg_jamendo_track: response.data?.mtg_jamendo_track || {},
+    };
   }
 
   static async analyzeGenresUrl(url: string) {

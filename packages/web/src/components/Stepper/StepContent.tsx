@@ -1,5 +1,6 @@
 import React from 'react';
 import { UploadStep } from './Steps/UploadStep';
+import { AnalysisStep } from './Steps/AnalysisStep';
 
 interface StepContentProps {
   step: number;
@@ -12,7 +13,7 @@ export const StepContent: React.FC<StepContentProps> = ({ step, onNext, onBack }
     case 0:
       return <UploadStep onNext={onNext} />;
     case 1:
-      return <div>Analysis Step</div>;
+      return <AnalysisStep onNext={onNext} onBack={onBack} />;
     case 2:
       return <div>Genre Selection Step</div>;
     case 3:
