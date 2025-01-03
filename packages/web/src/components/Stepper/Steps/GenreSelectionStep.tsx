@@ -2,11 +2,7 @@ import React, { useState } from 'react';
 import { Box, Typography, Button, Chip, Paper } from '@mui/material';
 import { useAnalysis } from '../../../context/AnalysisContext';
 import { ApiService } from '../../../services/api';
-
-interface GenreSelectionStepProps {
-  onNext: () => void;
-  onBack: () => void;
-}
+import { GenreSelectionStepProps } from '../../../types/components';
 
 export const GenreSelectionStep: React.FC<GenreSelectionStepProps> = ({ onNext, onBack }) => {
   const { state } = useAnalysis();
@@ -36,7 +32,7 @@ export const GenreSelectionStep: React.FC<GenreSelectionStepProps> = ({ onNext, 
       const results = await ApiService.searchSpotify(selectedGenreNames);
       console.log('Spotify search results:', results);
       
-      onNext();
+      onNext(results);
     } catch (error) {
       console.error('Error searching Spotify:', error);
       // Optionally add error handling UI

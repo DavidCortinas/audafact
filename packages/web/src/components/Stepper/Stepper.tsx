@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Box, Stepper as MUIStepper, Step, StepLabel, Button } from '@mui/material';
+import { Box, Stepper as MUIStepper, Step, StepLabel } from '@mui/material';
 import { StepContent } from './StepContent';
+import { SpotifySearchResult } from '../../types/spotify';
 
 const steps = [
   {
@@ -23,6 +24,7 @@ const steps = [
 
 export const Stepper = () => {
   const [activeStep, setActiveStep] = useState(0);
+  const [searchResults, setSearchResults] = useState<SpotifySearchResult[]>([]);
 
   const handleNext = () => {
     setActiveStep((prevStep) => Math.min(prevStep + 1, steps.length - 1));
@@ -30,6 +32,12 @@ export const Stepper = () => {
 
   const handleBack = () => {
     setActiveStep((prevStep) => Math.max(prevStep - 1, 0));
+  };
+
+  const handleSearchComplete = (results: SpotifySearchResult[]) => {
+    console.log('Setting search results:', results);
+    setSearchResults(results);
+    handleNext();
   };
 
   return (
@@ -47,23 +55,9 @@ export const Stepper = () => {
           step={activeStep}
           onNext={handleNext}
           onBack={handleBack}
+          onSearchComplete={handleSearchComplete}
+          results={searchResults}
         />
-      </Box>
-
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-        <Button
-          disabled={activeStep === 0}
-          onClick={handleBack}
-        >
-          Back
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleNext}
-          disabled={activeStep === steps.length - 1}
-        >
-          {activeStep === steps.length - 2 ? 'Finish' : 'Next'}
-        </Button>
       </Box>
     </Box>
   );

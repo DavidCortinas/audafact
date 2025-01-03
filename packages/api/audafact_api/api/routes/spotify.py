@@ -18,7 +18,6 @@ async def search_spotify(
     try:
         logger.info(f"Starting Spotify search with genres: {genres}, types: {types}")
 
-        # Verify credentials are loaded
         if not settings.SPOTIFY_CLIENT_ID or not settings.SPOTIFY_CLIENT_SECRET:
             raise HTTPException(
                 status_code=500, detail="Spotify credentials not configured"
@@ -29,40 +28,28 @@ async def search_spotify(
             client_secret=settings.SPOTIFY_CLIENT_SECRET,
         )
 
-        results = {
-            "artists": {"items": [], "total": 0},
-            "playlists": {"items": [], "total": 0},
-        }
+        results = []
 
         for genre in genres:
             logger.info(f"Searching for genre: {genre}")
-            query = f'genre:"{genre}"'  # Add quotes around genre
+            query = f'genre:"{genre}"'
             search_results = await spotify_client.search(
-                q=query,
-                type=",".join(types),  # Join types with comma for single search
-                limit=limit,
+                q=query, type=",".join(types), limit=limit
             )
 
-            if "artists" in search_results:
-                results["artists"]["items"].extend(search_results["artists"]["items"])
-                results["artists"]["total"] = max(
-                    results["artists"]["total"],
-                    search_results["artists"].get("total", 0),
-                )
+            # Keep the original Spotify response structure for each genre
+            genre_result = {
+                "genre": genre,
+                "artists": search_results.get("artists", {"items": [], "total": 0}),
+                "playlists": search_results.get("playlists", {"items": [], "total": 0}),
+            }
+            results.append(genre_result)
 
-            if "playlists" in search_results:
-                results["playlists"]["items"].extend(
-                    search_results["playlists"]["items"]
-                )
-                results["playlists"]["total"] = max(
-                    results["playlists"]["total"],
-                    search_results["playlists"].get("total", 0),
-                )
+            logger.info(
+                f"Found {len(genre_result['artists']['items'])} artists and {len(genre_result['playlists']['items'])} playlists for genre {genre}"
+            )
 
-        logger.info(
-            f"Total results: {results['artists']['total']} artists, {results['playlists']['total']} playlists"
-        )
-        return JSONResponse(content=results)
+        return JSONResponse(content={"results": results})
 
     except Exception as e:
         logger.error(f"Error in search_spotify: {str(e)}", exc_info=True)

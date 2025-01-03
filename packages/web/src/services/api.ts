@@ -204,18 +204,14 @@ export class ApiService {
         params.append("limit", "50");
 
         const response = await api.get(`/spotify/search?${params.toString()}`);
-        return response.data;
+        // Each response.data contains a 'results' array with one item
+        return response.data.results[0]; // Return the first (and only) result for this genre
       })
     );
+    console.log("search results by genre:", results);
 
-    // Combine results from all genre searches
-    return results.reduce(
-      (acc, result) => ({
-        artists: [...(acc.artists || []), ...(result.artists || [])],
-        playlists: [...(acc.playlists || []), ...(result.playlists || [])],
-      }),
-      { artists: [], playlists: [] }
-    );
+    // Return the array of results directly, maintaining genre separation
+    return results;
   }
 
   private static async uploadFile(
