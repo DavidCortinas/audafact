@@ -96,13 +96,10 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onNext }) => {
       console.log('Transformed result:', result);
       dispatch({ type: 'ANALYSIS_SUCCESS', payload: validateAnalysisResponse(result) });
       
-      setTimeout(() => {
-        onNext();
-      }, 1000);
+      onNext();
     } catch (err) {
       console.error('Analysis error:', err);
       setError(err instanceof Error ? err.message : 'Failed to upload file');
-    } finally {
       setIsLoading(false);
       setIsAnalyzing(false);
       setUploadProgress(0);
@@ -143,7 +140,6 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onNext }) => {
       onNext();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to analyze URL');
-    } finally {
       setIsLoading(false);
       setIsAnalyzing(false);
       setAnalysisStep(null);
