@@ -1,9 +1,9 @@
 import React from 'react';
 import { Box, Button, Typography, Paper } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
-import { ReportStepProps } from '../../../types/components';
+import { StatsStepProps } from '../../../types/components';
 
-export const ReportStep: React.FC<ReportStepProps> = ({ onBack, results }) => {
+export const StatsStep: React.FC<StatsStepProps> = ({ onBack, results }) => {
   const handleDownloadReport = () => {
     // TODO: Implement report download
     console.log('Downloading report...');
@@ -12,7 +12,7 @@ export const ReportStep: React.FC<ReportStepProps> = ({ onBack, results }) => {
   return (
     <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        Analysis Results
+        Spotify Statistics
       </Typography>
       
       {results.map((result) => (

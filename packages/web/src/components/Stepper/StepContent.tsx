@@ -2,7 +2,7 @@ import React from 'react';
 import { UploadStep } from './Steps/UploadStep';
 import { AnalysisStep } from './Steps/AnalysisStep';
 import { GenreSelectionStep } from './Steps/GenreSelectionStep';
-import { ReportStep } from './Steps/ReportStep';
+import { StatsStep } from './Steps/StatsStep';
 import { StepContentProps } from '../../types/components';
 
 export const StepContent: React.FC<StepContentProps> = ({ 
@@ -20,7 +20,7 @@ export const StepContent: React.FC<StepContentProps> = ({
     case 2:
       return <GenreSelectionStep onNext={onSearchComplete} onBack={onBack} />;
     case 3:
-      return <ReportStep onBack={onBack} results={results} />;
+      return <StatsStep onBack={onBack} results={results} />;
     default:
       return null;
   }

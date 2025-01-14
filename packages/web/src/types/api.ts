@@ -39,6 +39,11 @@ export interface TagAnalysisResponse extends ApiResponse {
   tags: Tag[];
 }
 
+export interface AnalysisMetadata {
+  trackName: string;
+  artistName: string;
+}
+
 // Combined analysis response
 export interface AnalysisResponse {
   success: boolean;
@@ -46,6 +51,7 @@ export interface AnalysisResponse {
   genres: Genre[];
   moodThemes: MoodTheme[];
   tags: Tag[];
+  metadata?: AnalysisMetadata;
 }
 
 // Audio metadata interface

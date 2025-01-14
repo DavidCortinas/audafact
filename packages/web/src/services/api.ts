@@ -194,9 +194,12 @@ export class ApiService {
     }
   }
 
-  static async searchSpotify(genres: string[]) {
+  static async searchSpotify(genres: string[] | string) {
+    // Ensure genres is always an array
+    const genreArray = Array.isArray(genres) ? genres : [genres];
+
     const results = await Promise.all(
-      genres.map(async (genre) => {
+      genreArray.map(async (genre) => {
         const params = new URLSearchParams();
         params.append("genres", genre);
         params.append("types", "artist");
@@ -204,13 +207,11 @@ export class ApiService {
         params.append("limit", "50");
 
         const response = await api.get(`/spotify/search?${params.toString()}`);
-        // Each response.data contains a 'results' array with one item
-        return response.data.results[0]; // Return the first (and only) result for this genre
+        return response.data.results[0];
       })
     );
     console.log("search results by genre:", results);
 
-    // Return the array of results directly, maintaining genre separation
     return results;
   }
 

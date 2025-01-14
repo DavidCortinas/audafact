@@ -13,7 +13,7 @@ export interface GenreSelectionStepProps {
   onBack: () => void;
 }
 
-export interface ReportStepProps {
+export interface StatsStepProps {
   onBack: () => void;
   results: SpotifySearchResult[];
 }

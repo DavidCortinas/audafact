@@ -1,63 +1,70 @@
 import React, { createContext, useContext, useReducer } from 'react';
-import type { AnalysisResponse } from '../types/api';
+import type { AnalysisResponse, AnalysisMetadata } from '../types/api';
 
 interface AnalysisState {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  error: string | null;
   results: AnalysisResponse | null;
-  loading: boolean;
-  error: Error | null;
+  metadata: {
+    trackName: string;
+    artistName: string;
+  };
+  selections: {
+    genres: Set<string>;
+    moods: Set<string>;
+    tags: Set<string>;
+  };
 }
 
-type AnalysisAction = 
-  | { type: 'START_ANALYSIS' }
-  | { type: 'ANALYSIS_SUCCESS'; payload: AnalysisResponse }
-  | { type: 'ANALYSIS_ERROR'; payload: Error }
-  | { type: 'RESET_ANALYSIS' };
+const initialState: AnalysisState = {
+  status: 'idle',
+  error: null,
+  results: null,
+  metadata: {
+    trackName: '',
+    artistName: '',
+  },
+  selections: {
+    genres: new Set(),
+    moods: new Set(),
+    tags: new Set(),
+  },
+};
 
-const analysisReducer = (state: AnalysisState, action: AnalysisAction): AnalysisState => {
+type AnalysisAction =
+  | { type: 'ANALYSIS_START' }
+  | { type: 'ANALYSIS_SUCCESS'; payload: AnalysisResponse }
+  | { type: 'ANALYSIS_ERROR'; payload: string }
+  | { type: 'UPDATE_METADATA'; payload: { trackName: string; artistName: string } }
+  | { type: 'UPDATE_SELECTIONS'; payload: { type: 'genres' | 'moods' | 'tags'; selections: Set<string> } };
+
+function analysisReducer(state: AnalysisState, action: AnalysisAction): AnalysisState {
   switch (action.type) {
-    case 'START_ANALYSIS':
-      return {
-        ...state,
-        loading: true,
-        error: null
-      };
-    
+    case 'ANALYSIS_START':
+      return { ...state, status: 'loading', error: null };
     case 'ANALYSIS_SUCCESS':
-      return {
-        results: action.payload,
-        loading: false,
-        error: null
-      };
-    
+      return { ...state, status: 'success', results: action.payload };
     case 'ANALYSIS_ERROR':
+      return { ...state, status: 'error', error: action.payload };
+    case 'UPDATE_METADATA':
+      return { ...state, metadata: action.payload };
+    case 'UPDATE_SELECTIONS':
       return {
         ...state,
-        loading: false,
-        error: action.payload
+        selections: {
+          ...state.selections,
+          [action.payload.type]: action.payload.selections
+        }
       };
-    
-    case 'RESET_ANALYSIS':
-      return {
-        results: null,
-        loading: false,
-        error: null
-      };
-    
     default:
       return state;
   }
-};
+}
 
 const AnalysisContext = createContext<{
   state: AnalysisState;
   dispatch: React.Dispatch<AnalysisAction>;
 } | undefined>(undefined);
-
-const initialState: AnalysisState = {
-  results: null,
-  loading: false,
-  error: null
-};
 
 export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(analysisReducer, initialState);

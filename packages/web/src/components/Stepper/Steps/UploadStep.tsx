@@ -1,12 +1,13 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Box, Typography, Button, TextField, Divider, CircularProgress, LinearProgress } from '@mui/material';
+import { Box, Typography, Button, TextField, Divider, CircularProgress, LinearProgress, Grid } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { ApiService } from '../../../services/api';
 import { useAnalysis } from '../../../context/AnalysisContext';
 import { transformAnalysisResponse } from '../../../services/transforms';
 import { validateAnalysisResponse } from '../../../utils/validation';
-import { CheckCircleOutline } from '@mui/icons-material';
+import { CheckCircleOutline, SaveOutlined } from '@mui/icons-material';
+import { MetadataFields } from '../../Metadata/MetadataFields';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ACCEPTED_FORMATS = {
@@ -19,6 +20,12 @@ const ACCEPTED_FORMATS = {
 
 interface UploadStepProps {
   onNext: () => void;
+  trackName: string;
+  artistName: string;
+  onTrackNameChange: (value: string) => void;
+  onArtistNameChange: (value: string) => void;
+  onSave: () => void;
+  metadataSaved: boolean;
 }
 
 interface PartialResults {
@@ -27,7 +34,15 @@ interface PartialResults {
   tags?: any[];
 }
 
-export const UploadStep: React.FC<UploadStepProps> = ({ onNext }) => {
+export const UploadStep: React.FC<UploadStepProps> = ({ 
+  onNext,
+  trackName,
+  artistName,
+  onTrackNameChange,
+  onArtistNameChange,
+  onSave,
+  metadataSaved,
+}) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +105,10 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onNext }) => {
         tags: {
           mtg_jamendo_general: tags.mtg_jamendo_general,
           mtg_jamendo_track: tags.mtg_jamendo_track
+        },
+        metadata: {
+          trackName,
+          artistName
         }
       });
       console.log('Raw API data:', { genres, moodThemes, tags });
@@ -133,7 +152,11 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onNext }) => {
         success: true,
         genres,
         moodThemes,
-        tags
+        tags,
+        metadata: {
+          trackName,
+          artistName
+        }
       });
 
       dispatch({ type: 'ANALYSIS_SUCCESS', payload: validateAnalysisResponse(result) });
@@ -179,6 +202,15 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onNext }) => {
   const getAnalysisMessage = () => {
     return (
       <Box sx={{ mt: 2 }}>
+        <MetadataFields
+          trackName={trackName}
+          artistName={artistName}
+          onTrackNameChange={onTrackNameChange}
+          onArtistNameChange={onArtistNameChange}
+          onSave={onSave}
+          metadataSaved={metadataSaved}
+        />
+
         <Typography sx={{ color: 'text.secondary', mb: 2 }}>
           {analysisStep === 'genres' && 'Analyzing genres...'}
           {analysisStep === 'moods' && 'Analyzing moods and themes...'}
