@@ -3,6 +3,8 @@ import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Must be set before importing TF
 
 from ..utils.logging_config import configure_logging
+from ..core.logging import logger
+from ..config import settings
 
 configure_logging()
 
@@ -10,14 +12,9 @@ import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
-from .routes import analysis, spotify
+from .routes import analysis, spotify, auth, genres, mood_themes, tags
 from ..services.audio import initialize_models
 from .middleware.size_limit import MaxSizeLimitMiddleware
-from .routes import genres, mood_themes, tags
-from ..core.config import settings
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Music Intelligence API",
@@ -39,14 +36,27 @@ app.add_middleware(
 # Then add size limit middleware
 app.add_middleware(MaxSizeLimitMiddleware, max_upload_size=10 * 1024 * 1024)
 
-# At the start of your app initialization
-configure_logging()
-
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize models when the app starts"""
+    """Initialize models and logging when the app starts"""
+    logger.info("Starting Music Intelligence API")
     initialize_models(settings.MODEL_PATH)
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown"""
+    logger.info("Shutting down Music Intelligence API")
+
+
+# Include all routers
+app.include_router(spotify.router, prefix="/api", tags=["spotify"])
+app.include_router(genres.router, prefix="/api")
+app.include_router(mood_themes.router, prefix="/api")
+app.include_router(tags.router, prefix="/api")
+app.include_router(analysis.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")  # Add the auth router
 
 
 @app.middleware("http")
@@ -94,13 +104,6 @@ async def metrics():
     return {"uptime": "...", "request_count": "...", "error_count": "..."}
 
 
-app.include_router(spotify.router, prefix="/api", tags=["spotify"])
-app.include_router(genres.router, prefix="/api")
-app.include_router(mood_themes.router, prefix="/api")
-app.include_router(tags.router, prefix="/api")
-app.include_router(analysis.router, prefix="/api")
-
-
 @app.middleware("http")
 async def check_subscription_tier(request: Request, call_next):
     # Get subscription tier from RapidAPI header
@@ -117,14 +120,12 @@ async def check_subscription_tier(request: Request, call_next):
 
 
 @app.middleware("http")
-async def verify_rapidapi_proxy(request, call_next):
+async def verify_rapidapi_proxy(request: Request, call_next):
     # Only allow public access to main app docs and basic endpoints
     public_paths = {
-        # Basic endpoints
         "/health",
         "/metrics",
         "/",
-        # Main app documentation (showing only general info)
         "/docs",
         "/redoc",
         "/api-docs",
@@ -139,13 +140,17 @@ async def verify_rapidapi_proxy(request, call_next):
     ):
         return await call_next(request)
 
-    if settings.require_auth:
-        rapidapi_proxy_secret = request.headers.get("X-RapidAPI-Proxy-Secret")
-        if (
-            not rapidapi_proxy_secret
-            or rapidapi_proxy_secret != settings.RAPIDAPI_PROXY_SECRET
-        ):
-            raise HTTPException(status_code=403, detail="Not authorized")
+    # Skip auth check if require_auth is False or in development
+    if not settings.require_auth or settings.ENV == "development":
+        return await call_next(request)
+
+    # Only check RapidAPI auth in production
+    rapidapi_proxy_secret = request.headers.get("X-RapidAPI-Proxy-Secret")
+    if (
+        not rapidapi_proxy_secret
+        or rapidapi_proxy_secret != settings.RAPIDAPI_PROXY_SECRET
+    ):
+        raise HTTPException(status_code=403, detail="Not authorized")
 
     return await call_next(request)
 

@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Box, Typography, Paper, Chip, Button, TextField, Alert } from '@mui/material';
 import { useAnalysis } from '../../../context/AnalysisContext';
 import { MetadataFields } from '../../Metadata/MetadataFields';
+import { ApiService } from '../../../services/api';
 
 interface ResultSelectionsStepProps {
-  onNext: () => void;
+  onNext: (email: string) => void;
   onBack: () => void;
   trackName: string;
   artistName: string;
@@ -41,20 +42,34 @@ export const ResultSelectionsStep: React.FC<ResultSelectionsStepProps> = ({
     return re.test(email);
   };
 
-  const handleContinue = () => {
-    if (!email.trim()) {
-      setEmailError('Please enter your email to continue');
-      return;
-    }
-
+  const handleContinue = async () => {
     if (!validateEmail(email)) {
       setEmailError('Please enter a valid email address');
       return;
     }
 
-    // Clear any existing errors
-    setEmailError('');
-    onNext();
+    try {
+      // Send verification email with user data
+      const response = await ApiService.sendVerificationEmail({
+        email,
+        trackName: state.metadata.trackName,
+        artistName: state.metadata.artistName,
+        selections: {
+          genres: Array.from(state.selections.genres),
+          moods: Array.from(state.selections.moods),
+          tags: Array.from(state.selections.tags)
+        }
+      });
+
+      if (response.success) {
+        setEmailError('');
+        onNext(email);
+      } else {
+        setEmailError(response.error || 'Failed to send verification email');
+      }
+    } catch (err) {
+      setEmailError(err.message || 'Failed to send verification email');
+    }
   };
 
   return (

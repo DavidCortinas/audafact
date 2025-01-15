@@ -26,6 +26,23 @@ interface RawAnalysisResponse {
   tags: any[];
 }
 
+interface VerificationResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+interface SendVerificationRequest {
+  email: string;
+  trackName?: string;
+  artistName?: string;
+  selections?: {
+    genres: string[];
+    moods: string[];
+    tags: string[];
+  };
+}
+
 export class ApiService {
   static async analyzeGenres(
     file: File,
@@ -213,6 +230,58 @@ export class ApiService {
     console.log("search results by genre:", results);
 
     return results;
+  }
+
+  static async verifyCode(
+    email: string,
+    code: string
+  ): Promise<VerificationResponse> {
+    try {
+      const response = await api.post("/auth/verify", {
+        email,
+        code,
+      });
+
+      // If verification is successful, store the token
+      if (response.data.success && response.data.token) {
+        localStorage.setItem("authToken", response.data.token);
+        api.defaults.headers.common[
+          "Authorization"
+        ] = `Bearer ${response.data.token}`;
+      }
+
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || "Failed to verify code");
+    }
+  }
+
+  static async resendVerificationCode(
+    email: string
+  ): Promise<VerificationResponse> {
+    try {
+      const response = await api.post("/auth/resend-code", {
+        email,
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || "Failed to resend verification code"
+      );
+    }
+  }
+
+  static async sendVerificationEmail(
+    data: SendVerificationRequest
+  ): Promise<VerificationResponse> {
+    try {
+      const response = await api.post("/auth/send-verification", data);
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error.response?.data?.message || "Failed to send verification email"
+      );
+    }
   }
 
   private static async uploadFile(

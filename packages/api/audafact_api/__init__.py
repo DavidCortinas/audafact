@@ -1,4 +1,4 @@
 from .api.app import app
-from .core.config import settings
+from audafact_api.config import settings
 
 __all__ = ["app", "settings"]

@@ -10,8 +10,8 @@ from ...services.audio import (
     predict_genre_from_segments,
     predict_genre_from_qtrs,
 )
-from ...services.downloader import download_audio_from_url
-from ...core.config import settings
+from audafact_api.services.downloader import download_audio_from_url
+from audafact_api.config import settings
 import asyncio
 
 logger = logging.getLogger(__name__)

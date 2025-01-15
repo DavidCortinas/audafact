@@ -9,17 +9,23 @@ import {
   CircularProgress 
 } from '@mui/material';
 import { useAnalysis } from '../../../context/AnalysisContext';
+import { ApiService } from '../../../services/api';
 
 interface MarketReportStepProps {
   onBack: () => void;
+  email: string;
 }
 
-export const MarketReportStep: React.FC<MarketReportStepProps> = ({ onBack }) => {
+export const MarketReportStep: React.FC<MarketReportStepProps> = ({ 
+  onBack,
+  email 
+}) => {
   const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleVerifyCode = async () => {
     if (!verificationCode.trim()) {
@@ -29,13 +35,19 @@ export const MarketReportStep: React.FC<MarketReportStepProps> = ({ onBack }) =>
 
     setIsVerifying(true);
     setError('');
+    setSuccessMessage('');
 
     try {
-      // TODO: Add API call to verify code
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      setIsVerified(true);
+      const response = await ApiService.verifyCode(email, verificationCode);
+      
+      if (response.success) {
+        setIsVerified(true);
+        setSuccessMessage('Email verified successfully!');
+      } else {
+        setError(response.error || 'Invalid verification code. Please try again.');
+      }
     } catch (err) {
-      setError('Invalid verification code. Please try again.');
+      setError(err.message || 'Failed to verify code. Please try again.');
     } finally {
       setIsVerifying(false);
     }
@@ -44,13 +56,19 @@ export const MarketReportStep: React.FC<MarketReportStepProps> = ({ onBack }) =>
   const handleResendCode = async () => {
     setIsResending(true);
     setError('');
+    setSuccessMessage('');
 
     try {
-      // TODO: Add API call to resend verification code
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      setError('A new verification code has been sent to your email');
+      const response = await ApiService.resendVerificationCode(email);
+      
+      if (response.success) {
+        setSuccessMessage('A new verification code has been sent to your email');
+        setVerificationCode('');
+      } else {
+        setError(response.error || 'Failed to resend code. Please try again.');
+      }
     } catch (err) {
-      setError('Failed to resend verification code. Please try again.');
+      setError(err.message || 'Failed to resend code. Please try again.');
     } finally {
       setIsResending(false);
     }
@@ -81,8 +99,20 @@ export const MarketReportStep: React.FC<MarketReportStepProps> = ({ onBack }) =>
           Enter Verification Code
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          We've sent a verification code to your email address. Enter it below to access your interactive market report.
+          We've sent a verification code to <strong>{email}</strong>. Enter it below to access your interactive market report.
         </Typography>
+
+        {successMessage && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {successMessage}
+          </Alert>
+        )}
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 400 }}>
           <TextField
@@ -92,9 +122,9 @@ export const MarketReportStep: React.FC<MarketReportStepProps> = ({ onBack }) =>
             onChange={(e) => {
               setVerificationCode(e.target.value);
               setError('');
+              setSuccessMessage('');
             }}
             error={!!error}
-            helperText={error}
             disabled={isVerifying}
           />
 

@@ -20,8 +20,12 @@ export const Stepper = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [searchResults, setSearchResults] = useState<SpotifySearchResult[]>([]);
   const [metadataSaved, setMetadataSaved] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
 
-  const handleNext = () => {
+  const handleNext = (email?: string) => {
+    if (email) {
+      setUserEmail(email);
+    }
     setActiveStep((prevStep) => Math.min(prevStep + 1, steps.length - 1));
   };
 
@@ -76,9 +80,15 @@ export const Stepper = () => {
       case 1:
         return <AnalysisStep onNext={handleNext} onBack={handleBack} {...metadataProps} />;
       case 2:
-        return <ResultSelectionsStep onNext={handleNext} onBack={handleBack} {...metadataProps} />;
+        return (
+          <ResultSelectionsStep 
+            onNext={(email: string) => handleNext(email)} 
+            onBack={handleBack} 
+            {...metadataProps} 
+          />
+        );
       case 3:
-        return <MarketReportStep onBack={handleBack} {...metadataProps} />;
+        return <MarketReportStep onBack={handleBack} email={userEmail} />;
       default:
         return null;
     }
