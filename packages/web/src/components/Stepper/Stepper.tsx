@@ -6,6 +6,7 @@ import { UploadStep } from './Steps/UploadStep';
 import { AnalysisStep } from './Steps/AnalysisStep';
 import { useAnalysis } from '../../context/AnalysisContext';
 import { ResultSelectionsStep } from './Steps/ResultSelectionsStep';
+import { MarketReportStep } from './Steps/MarketReportStep';
 
 const steps = [
   'Analyze Audio',

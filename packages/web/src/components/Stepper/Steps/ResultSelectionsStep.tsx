@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Typography, Paper, Chip, Button } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography, Paper, Chip, Button, TextField, Alert } from '@mui/material';
 import { useAnalysis } from '../../../context/AnalysisContext';
 import { MetadataFields } from '../../Metadata/MetadataFields';
 
@@ -20,6 +20,8 @@ export const ResultSelectionsStep: React.FC<ResultSelectionsStepProps> = ({
   ...metadataProps
 }) => {
   const { state } = useAnalysis();
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   // Get selected items
   const selectedGenres = Array.from(state.selections.genres)
@@ -33,6 +35,27 @@ export const ResultSelectionsStep: React.FC<ResultSelectionsStepProps> = ({
   const selectedTags = Array.from(state.selections.tags)
     .map(id => state.results?.tags.find(t => t.id === id))
     .filter(t => t !== undefined);
+
+  const validateEmail = (email: string) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
+
+  const handleContinue = () => {
+    if (!email.trim()) {
+      setEmailError('Please enter your email to continue');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setEmailError('Please enter a valid email address');
+      return;
+    }
+
+    // Clear any existing errors
+    setEmailError('');
+    onNext();
+  };
 
   return (
     <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
@@ -95,18 +118,56 @@ export const ResultSelectionsStep: React.FC<ResultSelectionsStepProps> = ({
         </Paper>
       </Box>
 
+      {/* Add Email Registration Section */}
+      <Paper sx={{ p: 3, mt: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Generate Your Market Report
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Enter your email to save your selections and continue to your interactive market report.
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+          <TextField
+            fullWidth
+            label="Email Address"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setEmailError('');
+            }}
+            error={!!emailError}
+            helperText={emailError}
+            sx={{ maxWidth: 400 }}
+          />
+        </Box>
+      </Paper>
+
       <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
         <Button onClick={onBack} variant="outlined">
           Back
         </Button>
         <Button 
-          onClick={onNext} 
+          onClick={handleContinue} 
           variant="contained"
-          disabled={selectedGenres.length === 0 && selectedMoods.length === 0 && selectedTags.length === 0}
+          disabled={
+            (selectedGenres.length === 0 && 
+            selectedMoods.length === 0 && 
+            selectedTags.length === 0) ||
+            !email.trim()
+          }
         >
-          Continue
+          Continue to Market Report
         </Button>
       </Box>
+
+      {/* Add selection requirement message if needed */}
+      {selectedGenres.length === 0 && 
+       selectedMoods.length === 0 && 
+       selectedTags.length === 0 && (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Please select at least one genre, mood, or tag to continue.
+        </Alert>
+      )}
     </Box>
   );
 }; 
