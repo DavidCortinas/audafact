@@ -1,5 +1,5 @@
 import { Box } from '@mui/material';
-import { Stepper } from '../components/Stepper';
+import { Stepper } from '../src/components/Stepper';
 
 export default function Home() {
   return (
@@ -20,4 +20,4 @@ export default function Home() {
       </Box>
     </Box>
   );
-}
+} 

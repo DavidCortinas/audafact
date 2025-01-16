@@ -1,20 +1,19 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, createContext } from 'react';
+import type { AppProps } from 'next/app';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { createAppTheme } from '../theme';
+import { createAppTheme } from '../src/theme';
 import { Box, IconButton } from '@mui/material';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
+import { AnalysisProvider } from '../src/context/AnalysisContext';
 
 // Create a context for theme mode
-import { createContext } from 'react';
 export const ColorModeContext = createContext({ 
   toggleColorMode: () => {} 
 });
 
-import { AnalysisProvider } from '../context/AnalysisContext';
-
-function MyApp({ Component, pageProps }) {
+function MyApp({ Component, pageProps }: AppProps) {
   const [mode, setMode] = useState<'light' | 'dark'>('dark');
   
   const colorMode = useMemo(
@@ -62,4 +61,4 @@ function MyApp({ Component, pageProps }) {
   );
 }
 
-export default MyApp;
+export default MyApp; 

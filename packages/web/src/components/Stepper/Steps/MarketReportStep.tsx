@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/router';
 import { 
   Box, 
   Typography, 
@@ -8,7 +9,6 @@ import {
   Alert,
   CircularProgress 
 } from '@mui/material';
-import { useAnalysis } from '../../../context/AnalysisContext';
 import { ApiService } from '../../../services/api';
 
 interface MarketReportStepProps {
@@ -20,11 +20,11 @@ export const MarketReportStep: React.FC<MarketReportStepProps> = ({
   onBack,
   email 
 }) => {
+  const router = useRouter();
   const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   const handleVerifyCode = async () => {
@@ -41,8 +41,15 @@ export const MarketReportStep: React.FC<MarketReportStepProps> = ({
       const response = await ApiService.verifyCode(email, verificationCode);
       
       if (response.success) {
-        setIsVerified(true);
+        // Store the auth token
+        localStorage.setItem('authToken', response.token);
+        localStorage.setItem('userEmail', email);
+        
         setSuccessMessage('Email verified successfully!');
+        // Redirect to dashboard after a brief delay to show success message
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1500);
       } else {
         setError(response.error || 'Invalid verification code. Please try again.');
       }
@@ -73,20 +80,6 @@ export const MarketReportStep: React.FC<MarketReportStepProps> = ({
       setIsResending(false);
     }
   };
-
-  if (isVerified) {
-    return (
-      <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
-        <Typography variant="h4" component="h1" sx={{ mb: 4, fontWeight: 500 }}>
-          Market Report
-        </Typography>
-        {/* TODO: Add market report content here */}
-        <Typography>
-          Your interactive market report will appear here...
-        </Typography>
-      </Box>
-    );
-  }
 
   return (
     <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
