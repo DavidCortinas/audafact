@@ -1,8 +1,10 @@
-from sqlalchemy import Column, String, JSON, DateTime
+from sqlalchemy import Column, String, JSON, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 import uuid
 from datetime import datetime
 from ..database import Base
+
 
 class Report(Base):
     __tablename__ = "reports"
@@ -14,3 +16,7 @@ class Report(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     payment_status = Column(String(50))
     payment_id = Column(String(255))
+
+    # Add relationship to User
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    user = relationship("User", back_populates="reports")

@@ -41,12 +41,8 @@ export const MarketReportStep: React.FC<MarketReportStepProps> = ({
       const response = await ApiService.verifyCode(email, verificationCode);
       
       if (response.success) {
-        // Store the auth token
-        localStorage.setItem('authToken', response.token);
-        localStorage.setItem('userEmail', email);
-        
         setSuccessMessage('Email verified successfully!');
-        // Redirect to dashboard after a brief delay to show success message
+        // Redirect to dashboard after a brief delay
         setTimeout(() => {
           router.push('/dashboard');
         }, 1500);

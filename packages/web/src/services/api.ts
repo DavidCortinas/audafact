@@ -1,4 +1,9 @@
-import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
+import axios, {
+  AxiosRequestConfig,
+  AxiosResponse,
+  AxiosInstance,
+  AxiosError,
+} from "axios";
 import {
   ApiResponse,
   GenreAnalysisResponse,
@@ -11,6 +16,7 @@ import {
 import { withRetry } from "../utils/retry";
 import { validateAnalysisResponse } from "../utils/validation";
 import { transformAnalysisResponse } from "./transforms";
+import { TokenService } from "./token";
 
 const api = axios.create({
   baseURL: "http://localhost:8000/api",
@@ -44,6 +50,98 @@ interface SendVerificationRequest {
 }
 
 export class ApiService {
+  private static instance: AxiosInstance;
+  private static isRefreshing = false;
+  private static refreshSubscribers: ((token: string) => void)[] = [];
+
+  private static getInstance(): AxiosInstance {
+    if (!this.instance) {
+      this.instance = axios.create({
+        baseURL: process.env.NEXT_PUBLIC_API_URL,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      // Add request interceptor
+      this.instance.interceptors.request.use(
+        (config) => {
+          const token = TokenService.getAccessToken();
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+          return config;
+        },
+        (error) => Promise.reject(error)
+      );
+
+      // Add response interceptor
+      this.instance.interceptors.response.use(
+        (response) => response,
+        async (error: AxiosError) => {
+          const originalRequest = error.config;
+
+          if (error.response?.status === 401 && !originalRequest._retry) {
+            if (this.isRefreshing) {
+              // Wait for the token to be refreshed
+              try {
+                const token = await new Promise<string>((resolve) => {
+                  this.refreshSubscribers.push((token: string) => {
+                    resolve(token);
+                  });
+                });
+                originalRequest.headers.Authorization = `Bearer ${token}`;
+                return this.instance(originalRequest);
+              } catch (err) {
+                return Promise.reject(err);
+              }
+            }
+
+            originalRequest._retry = true;
+            this.isRefreshing = true;
+
+            try {
+              const refreshToken = TokenService.getRefreshToken();
+              if (!refreshToken) {
+                throw new Error("No refresh token available");
+              }
+
+              const response = await this.instance.post("/auth/refresh", {
+                refresh_token: refreshToken,
+              });
+
+              const { access_token, refresh_token } = response.data;
+              TokenService.setTokens({
+                access_token,
+                refresh_token,
+                token_type: "bearer",
+              });
+
+              // Notify all subscribers about the new token
+              this.refreshSubscribers.forEach((callback) =>
+                callback(access_token)
+              );
+              this.refreshSubscribers = [];
+
+              return this.instance(originalRequest);
+            } catch (err) {
+              // If refresh fails, log out the user
+              TokenService.clearTokens();
+              window.location.href = "/";
+              return Promise.reject(err);
+            } finally {
+              this.isRefreshing = false;
+            }
+          }
+
+          return Promise.reject(error);
+        }
+      );
+    }
+
+    return this.instance;
+  }
+
   static async analyzeGenres(
     file: File,
     onProgress?: (progress: UploadProgress) => void
@@ -237,22 +335,22 @@ export class ApiService {
     code: string
   ): Promise<VerificationResponse> {
     try {
-      const response = await api.post("/auth/verify", {
+      const response = await this.getInstance().post("/auth/verify", {
         email,
         code,
       });
 
-      // If verification is successful, store the token
-      if (response.data.success && response.data.token) {
-        localStorage.setItem("authToken", response.data.token);
-        api.defaults.headers.common[
-          "Authorization"
-        ] = `Bearer ${response.data.token}`;
+      if (response.data.success) {
+        TokenService.setTokens({
+          access_token: response.data.access_token,
+          refresh_token: response.data.refresh_token,
+          token_type: "bearer",
+        });
       }
 
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || "Failed to verify code");
+      throw this.handleError(error);
     }
   }
 
@@ -311,19 +409,10 @@ export class ApiService {
     return api.post(endpoint, formData, config);
   }
 
-  private static handleError(error: unknown): ApiError {
-    if (axios.isAxiosError(error)) {
-      const apiError = new Error(
-        error.response?.data?.message || error.message
-      ) as ApiError;
-
-      apiError.code = error.code;
-      apiError.statusCode = error.response?.status;
-      apiError.details = error.response?.data;
-
-      return apiError;
+  private static handleError(error: any) {
+    if (error.response) {
+      return error.response.data;
     }
-
-    return new Error("An unexpected error occurred") as ApiError;
+    return { success: false, error: error.message };
   }
 }

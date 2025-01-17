@@ -1,12 +1,14 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, Dict, List
+from typing import Optional
+from uuid import UUID
 
 
 class SendVerificationRequest(BaseModel):
     email: EmailStr
-    trackName: Optional[str] = None
-    artistName: Optional[str] = None
-    selections: Optional[Dict[str, List[str]]] = None
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
 
 
 class VerificationRequest(BaseModel):
@@ -14,11 +16,28 @@ class VerificationRequest(BaseModel):
     code: str
 
 
-class ResendVerificationRequest(BaseModel):
+class UserResponse(BaseModel):
+    id: UUID
     email: EmailStr
+    is_verified: bool
+
+    class Config:
+        from_attributes = True
 
 
 class VerificationResponse(BaseModel):
     success: bool
-    message: Optional[str] = None
-    error: Optional[str] = None
+    message: str
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+    user: Optional[UserResponse] = None
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
