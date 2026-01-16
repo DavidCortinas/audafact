@@ -55,7 +55,7 @@ tensorflow-estimator==2.12.0
 tensorflow-io-gcs-filesystem==0.34.0
 termcolor==2.4.0
 typing_extensions==4.12.2
-urllib3==2.2.3
+urllib3==2.6.3
 uvicorn==0.32.1
 websockets==13.1
 Werkzeug==3.1.5
