@@ -2,7 +2,7 @@ absl-py==2.1.0
 annotated-types==0.7.0
 anyio==4.5.2
 astunparse==1.6.3
-Brotli==1.1.0
+Brotli==1.2.0
 cachetools==5.5.0
 certifi==2024.8.30
 charset-normalizer==3.4.0
