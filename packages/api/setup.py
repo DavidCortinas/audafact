@@ -23,7 +23,7 @@ setup(
         "pydantic-settings",
         "python-dotenv",
         # Utilities
-        "requests==2.32.3",
+        "requests==2.32.4",
         "PyYAML==6.0.2",
         "websockets==13.1",
     ],
