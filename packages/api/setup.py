@@ -8,7 +8,7 @@ setup(
         # Core API packages
         "fastapi==0.115.6",
         "uvicorn==0.32.1",
-        "starlette==0.41.3",
+        "starlette==0.49.1",
         "python-multipart==0.0.19",
         # ML and Audio Processing
         "essentia-tensorflow==2.1b6.dev1110",
