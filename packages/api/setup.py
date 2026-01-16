@@ -12,7 +12,7 @@ setup(
         "python-multipart==0.0.19",
         # ML and Audio Processing
         "essentia-tensorflow==2.1b6.dev1110",
-        "tensorflow==2.12.0",
+        "tensorflow==2.12.1",
         "numpy==1.23.5",
         "scipy==1.10.1",
         # Audio Download
